@@ -119,9 +119,7 @@ export default function Home() {
       <header className="border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl font-bold">
-              m
-            </div>
+            <img src="/icon.svg" alt="mBrain" className="w-10 h-10 rounded-xl" />
             <div>
               <h1 className="text-xl font-bold">mBrain</h1>
               <p className="text-xs text-gray-500">AI Yield Optimizer</p>
