@@ -28,7 +28,7 @@ const ADDRESSES = {
 const VAULT_ABI = [
   { name: 'totalAssets', type: 'function', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { name: 'getWeightedAPY', type: 'function', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
-  { name: 'getAdapterInfo', type: 'function', inputs: [{ type: 'uint256' }], outputs: [{ type: 'address' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'bool' }], stateMutability: 'view' },
+  { name: 'getAdapterInfo', type: 'function', inputs: [{ type: 'uint256' }], outputs: [{ type: 'address' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'bool' }], stateMutability: 'view' },
   { name: 'getAdaptersCount', type: 'function', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
   { name: 'needsRebalance', type: 'function', inputs: [], outputs: [{ type: 'bool' }], stateMutability: 'view' },
 ] as const
@@ -171,28 +171,19 @@ async function fetchVaultData(vaultAddress: string, decimals: number): Promise<V
   // Fetch adapter info
   const adapters: AdapterData[] = []
   for (let i = 0; i < Number(adaptersCount); i++) {
-    const [adapterAddress, allocation, deposited, active] = await client.readContract({
+    const [adapterAddress, allocation, deposited, _currentValue, apy, active] = await client.readContract({
       address: vaultAddress as `0x${string}`,
       abi: VAULT_ABI,
       functionName: 'getAdapterInfo',
       args: [BigInt(i)],
     })
 
-    let adapterAPY = 0
-    try {
-      adapterAPY = Number(await client.readContract({
-        address: adapterAddress,
-        abi: ADAPTER_ABI,
-        functionName: 'getAPY',
-      })) / 100
-    } catch {}
-
     adapters.push({
       address: adapterAddress,
       allocation: Number(allocation) / 100, // bps to percent
       deposited: formatUnits(deposited, decimals),
       depositedRaw: deposited,
-      apy: adapterAPY,
+      apy: Number(apy) / 100, // bps to percent
       active,
     })
   }

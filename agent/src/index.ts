@@ -17,6 +17,13 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+// Helper to serialize BigInt to string for JSON
+function serializeData(data: any): any {
+  return JSON.parse(JSON.stringify(data, (_, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  ))
+}
+
 // State
 let latestData: ProtocolData | null = null
 let latestRecommendation: AIRecommendation | null = null
@@ -35,7 +42,7 @@ app.get('/api/data', async (req, res) => {
     if (!latestData) {
       latestData = await fetchProtocolData()
     }
-    res.json(latestData)
+    res.json(serializeData(latestData))
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
@@ -65,10 +72,10 @@ app.post('/api/analyze', async (req, res) => {
     latestRecommendation = await getAIRecommendation(latestData)
     addToHistory(latestRecommendation)
     console.log(`Analysis complete: ${latestRecommendation.action} (${latestRecommendation.confidence}% confidence)`)
-    res.json({
+    res.json(serializeData({
       data: latestData,
       recommendation: latestRecommendation,
-    })
+    }))
   } catch (error: any) {
     res.status(500).json({ error: error.message })
   }
