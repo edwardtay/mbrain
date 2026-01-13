@@ -2,6 +2,9 @@
 
 AI-powered yield optimizer for mYield vaults on Mantle. Uses LLM analysis and oracle data to automate yield strategy decisions.
 
+**Live**: https://mbrain-pi.vercel.app
+**GitHub**: https://github.com/edwardtay/mbrain
+
 ## Architecture
 
 ```
