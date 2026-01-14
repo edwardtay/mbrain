@@ -221,9 +221,9 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
-      const [d, r, k, h] = await Promise.all([
+      // Only fetch data and keeper status on initial load (not recommendation)
+      const [d, k, h] = await Promise.all([
         fetch(`${API_URL}/api/data`).then(r => r.ok ? r.json() : null),
-        fetch(`${API_URL}/api/recommendation`).then(r => r.ok ? r.json() : null),
         fetch(`${API_URL}/api/keeper/status`).then(r => r.ok ? r.json() : null),
         fetch(`${API_URL}/api/keeper/history`).then(r => r.ok ? r.json() : []),
       ])
@@ -240,7 +240,6 @@ export default function Home() {
           return updated
         })
       }
-      if (r) setRec(r)
       if (k) setKeeper(k)
       if (h) setHistory(h)
     } catch {} finally { setLoading(false) }
@@ -486,7 +485,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* AI Recommendation */}
+        {/* AI Recommendation - Only show after clicking Analyze */}
+        {!rec && !analyzing && (
+          <div className="p-6 bg-white/[0.02] border border-white/[0.08] border-dashed rounded-2xl text-center">
+            <div className="text-white/50 mb-3">Click "Analyze" to get AI-powered yield recommendations</div>
+            <button
+              onClick={analyze}
+              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-black rounded-full text-sm font-semibold transition-all"
+            >
+              Analyze Now
+            </button>
+          </div>
+        )}
+
         {rec && (
           <div className="p-5 sm:p-6 bg-gradient-to-b from-amber-950/30 to-amber-950/10 border border-amber-500/20 rounded-2xl">
             <div className="flex items-start justify-between mb-5">
