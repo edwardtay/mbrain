@@ -305,7 +305,14 @@ export default function Home() {
     }
   }, [agent, rec, keeper, data, execute])
 
-  const needsAction = (vault: 'usdc' | 'weth') => {
+  // Check if on-chain rebalance is actually needed (not just AI recommendation)
+  const canRebalance = (vault: 'usdc' | 'weth') => {
+    const vaultData = vault === 'usdc' ? data?.vaults?.usdc : data?.vaults?.weth
+    return vaultData?.needsRebalance === true
+  }
+
+  // Check if AI recommends action
+  const aiRecommends = (vault: 'usdc' | 'weth') => {
     if (!rec?.details) return false
     const vaultRec = vault === 'usdc' ? rec.details.usdcVault : rec.details.wethVault
     const suggestion = vaultRec?.suggestedAction || ''
@@ -501,41 +508,49 @@ export default function Home() {
               {(['usdc', 'weth'] as const).map((vault) => {
                 const v = vault === 'usdc' ? rec.details?.usdcVault : rec.details?.wethVault
                 const vaultData = vault === 'usdc' ? data?.vaults?.usdc : data?.vaults?.weth
-                const isActionVault = needsAction(vault)
+                const readyToExecute = canRebalance(vault)
+                const aiSuggests = aiRecommends(vault)
 
                 return (
                   <div
                     key={vault}
                     className={`p-5 rounded-xl transition-all ${
-                      isActionVault
+                      readyToExecute
                         ? 'bg-amber-500/10 border-2 border-amber-500/40 shadow-[0_0_24px_rgba(245,158,11,0.15)]'
+                        : aiSuggests
+                        ? 'bg-purple-500/10 border border-purple-500/30'
                         : 'bg-black/30 border border-white/[0.08]'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="text-base font-bold">{vault.toUpperCase()}</span>
-                        {isActionVault && (
+                        {readyToExecute && (
                           <span className="px-2 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-400 rounded uppercase tracking-wide">
-                            Action
+                            Ready
+                          </span>
+                        )}
+                        {!readyToExecute && aiSuggests && (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-purple-500/20 text-purple-300 rounded uppercase tracking-wide">
+                            AI Suggests
                           </span>
                         )}
                       </div>
-                      <span className={`text-base font-semibold ${isActionVault ? 'text-amber-400' : 'text-emerald-400'}`}>
+                      <span className={`text-base font-semibold ${readyToExecute ? 'text-amber-400' : 'text-emerald-400'}`}>
                         {vaultData?.apy?.toFixed(1) || '0'}% APY
                       </span>
                     </div>
 
-                    <p className="text-sm text-white/80 leading-relaxed mb-4">{v?.suggestedAction || 'Loading...'}</p>
+                    <p className="text-sm text-white/80 leading-relaxed mb-4">{v?.suggestedAction || 'Analyzing...'}</p>
 
                     <div className="flex gap-3">
-                      {isActionVault ? (
+                      {readyToExecute ? (
                         <>
                           <button
                             onClick={() => execute('rebalance', vault)}
                             className="flex-1 px-5 py-3 text-sm font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-lg transition-all shadow-[0_0_24px_rgba(245,158,11,0.4)]"
                           >
-                            Rebalance Now
+                            Execute Rebalance
                           </button>
                           <button
                             onClick={() => execute('harvest', vault)}
@@ -545,20 +560,15 @@ export default function Home() {
                           </button>
                         </>
                       ) : (
-                        <>
-                          <button
-                            onClick={() => execute('rebalance', vault)}
-                            className="px-4 py-2 text-sm font-medium bg-white/[0.06] hover:bg-white/[0.1] text-white/70 rounded-lg transition-all"
-                          >
-                            Rebalance
-                          </button>
+                        <div className="flex items-center gap-3 text-sm text-white/50">
+                          <span>Allocation within threshold</span>
                           <button
                             onClick={() => execute('harvest', vault)}
                             className="px-4 py-2 text-sm font-medium bg-white/[0.06] hover:bg-white/[0.1] text-white/70 rounded-lg transition-all"
                           >
                             Harvest
                           </button>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -644,9 +654,9 @@ export default function Home() {
           <div className="grid sm:grid-cols-2 gap-4">
             {(['usdc', 'weth'] as const).map((vault) => {
               const v = vault === 'usdc' ? data.vaults.usdc : data.vaults.weth
-              const isAction = needsAction(vault)
+              const readyToExecute = canRebalance(vault)
               return (
-                <div key={vault} className={`p-5 border rounded-xl ${isAction ? 'bg-amber-500/5 border-amber-500/20' : 'bg-white/[0.03] border-white/[0.08]'}`}>
+                <div key={vault} className={`p-5 border rounded-xl ${readyToExecute ? 'bg-amber-500/5 border-amber-500/20' : 'bg-white/[0.03] border-white/[0.08]'}`}>
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm font-semibold">{vault.toUpperCase()} Allocation</span>
                     {v.needsRebalance && <span className="text-xs text-amber-400 font-medium">Drift Detected</span>}
@@ -656,7 +666,7 @@ export default function Home() {
                       <div key={i} className="flex items-center gap-3">
                         <div className="flex-1 h-2 bg-white/[0.08] rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${isAction ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}
+                            className={`h-full rounded-full ${readyToExecute ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-purple-500 to-pink-500'}`}
                             style={{ width: `${a.allocation}%` }}
                           />
                         </div>
