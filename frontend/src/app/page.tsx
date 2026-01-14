@@ -265,6 +265,12 @@ export default function Home() {
       const res = await fetch(`${API_URL}/api/keeper/${action}/${vault}`, { method: 'POST' })
       if (res.ok) {
         const result = await res.json()
+        // Show result feedback
+        if (result.success) {
+          setThinking(`${action} successful! Tx: ${result.txHash?.slice(0, 10)}...`)
+        } else if (result.error) {
+          setThinking(`${action} skipped: ${result.error}`)
+        }
         // Add to local history immediately
         setHistory(prev => [{
           timestamp: Date.now(),
@@ -273,10 +279,15 @@ export default function Home() {
           txHash: result.txHash,
           status: (result.success ? 'success' : 'failed') as 'success' | 'failed',
           gasUsed: result.gasUsed,
+          error: result.error,
         }, ...prev].slice(0, 10))
+        // Clear thinking after 3 seconds
+        setTimeout(() => setThinking(null), 3000)
       }
       setTimeout(fetchData, 2000)
-    } catch {} finally { setThinking(null) }
+    } catch {} finally {
+      setTimeout(() => setThinking(null), 3000)
+    }
   }, [])
 
   useEffect(() => {
