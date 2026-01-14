@@ -295,8 +295,9 @@ export default function Home() {
   }, [agent, rec, keeper, data, execute])
 
   const needsAction = (vault: 'usdc' | 'weth') => {
-    if (!rec) return false
-    const suggestion = vault === 'usdc' ? rec.details.usdcVault.suggestedAction : rec.details.wethVault.suggestedAction
+    if (!rec?.details) return false
+    const vaultRec = vault === 'usdc' ? rec.details.usdcVault : rec.details.wethVault
+    const suggestion = vaultRec?.suggestedAction || ''
     return suggestion.toUpperCase().includes('REBALANCE')
   }
 
@@ -487,8 +488,8 @@ export default function Home() {
 
             <div className="grid sm:grid-cols-2 gap-4">
               {(['usdc', 'weth'] as const).map((vault) => {
-                const v = vault === 'usdc' ? rec.details.usdcVault : rec.details.wethVault
-                const vaultData = vault === 'usdc' ? data?.vaults.usdc : data?.vaults.weth
+                const v = vault === 'usdc' ? rec.details?.usdcVault : rec.details?.wethVault
+                const vaultData = vault === 'usdc' ? data?.vaults?.usdc : data?.vaults?.weth
                 const isActionVault = needsAction(vault)
 
                 return (
@@ -510,11 +511,11 @@ export default function Home() {
                         )}
                       </div>
                       <span className={`text-base font-semibold ${isActionVault ? 'text-amber-400' : 'text-emerald-400'}`}>
-                        {vaultData?.apy.toFixed(1)}% APY
+                        {vaultData?.apy?.toFixed(1) || '0'}% APY
                       </span>
                     </div>
 
-                    <p className="text-sm text-white/80 leading-relaxed mb-4">{v.suggestedAction}</p>
+                    <p className="text-sm text-white/80 leading-relaxed mb-4">{v?.suggestedAction || 'Loading...'}</p>
 
                     <div className="flex gap-3">
                       {isActionVault ? (
@@ -557,20 +558,22 @@ export default function Home() {
         )}
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { label: 'USDC Vault', value: data?.vaults.usdc.apy.toFixed(1), sub: `$${parseFloat(data?.vaults.usdc.tvl || '0').toFixed(0)} TVL` },
-            { label: 'WETH Vault', value: data?.vaults.weth.apy.toFixed(1), sub: `${parseFloat(data?.vaults.weth.tvl || '0').toFixed(4)} TVL` },
-            { label: 'Lendle', value: data?.protocols.lendle.usdcSupplyAPY.toFixed(1), sub: `${data?.protocols.lendle.usdcUtilization.toFixed(0)}% utilization` },
-            { label: 'mETH Staking', value: data?.protocols.meth.stakingAPY.toFixed(1), sub: `${data?.protocols.meth.exchangeRate} rate` },
-          ].map((item, i) => (
-            <div key={i} className="p-4 bg-white/[0.03] border border-white/[0.08] rounded-xl">
-              <div className="text-xs text-white/60 mb-1 font-medium">{item.label}</div>
-              <div className="text-2xl font-bold tracking-[-0.02em]">{item.value}%</div>
-              <div className="text-xs text-white/50 mt-1">{item.sub}</div>
-            </div>
-          ))}
-        </div>
+        {data && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: 'USDC Vault', value: data.vaults?.usdc?.apy?.toFixed(1) || '0', sub: `$${parseFloat(data.vaults?.usdc?.tvl || '0').toFixed(0)} TVL` },
+              { label: 'WETH Vault', value: data.vaults?.weth?.apy?.toFixed(1) || '0', sub: `${parseFloat(data.vaults?.weth?.tvl || '0').toFixed(4)} TVL` },
+              { label: 'Lendle', value: data.protocols?.lendle?.usdcSupplyAPY?.toFixed(1) || '0', sub: `${data.protocols?.lendle?.usdcUtilization?.toFixed(0) || '0'}% utilization` },
+              { label: 'mETH Staking', value: data.protocols?.meth?.stakingAPY?.toFixed(1) || '0', sub: `${data.protocols?.meth?.exchangeRate || '1.0'} rate` },
+            ].map((item, i) => (
+              <div key={i} className="p-4 bg-white/[0.03] border border-white/[0.08] rounded-xl">
+                <div className="text-xs text-white/60 mb-1 font-medium">{item.label}</div>
+                <div className="text-2xl font-bold tracking-[-0.02em]">{item.value}%</div>
+                <div className="text-xs text-white/50 mt-1">{item.sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Execution History */}
         {history.length > 0 && (
