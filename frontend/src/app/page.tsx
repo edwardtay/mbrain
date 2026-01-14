@@ -583,12 +583,12 @@ export default function Home() {
               {history.slice(0, 5).map((record, i) => (
                 <div key={i} className="flex items-center justify-between py-2 border-b border-white/[0.05] last:border-0">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${record.status === 'success' ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                    <span className="text-sm font-medium capitalize">{record.action}</span>
-                    <span className="text-xs text-white/50">{record.vault.toUpperCase()}</span>
+                    <div className={`w-2 h-2 rounded-full ${record?.status === 'success' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                    <span className="text-sm font-medium capitalize">{record?.action || 'unknown'}</span>
+                    <span className="text-xs text-white/50">{(record?.vault || '').toUpperCase()}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    {record.txHash && (
+                    {record?.txHash && (
                       <a
                         href={`https://explorer.mantle.xyz/tx/${record.txHash}`}
                         target="_blank"
@@ -598,7 +598,7 @@ export default function Home() {
                         {record.txHash.slice(0, 8)}...
                       </a>
                     )}
-                    <span className="text-xs text-white/40">{formatTimeAgo(record.timestamp)}</span>
+                    <span className="text-xs text-white/40">{formatTimeAgo(record?.timestamp || Date.now())}</span>
                   </div>
                 </div>
               ))}
