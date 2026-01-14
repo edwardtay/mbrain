@@ -4,7 +4,7 @@ AI-powered yield optimization agent for mYield vaults on Mantle. Uses Claude AI 
 
 **Live Demo**: https://mantle-maven.vercel.app
 **API**: https://mantle-maven-api-660587902574.us-central1.run.app
-**GitHub**: https://github.com/edwardtay/mbrain
+
 
 ## What It Does
 
