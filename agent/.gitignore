@@ -1,2 +1,28 @@
+# Dependencies
+node_modules/
 
+# Environment files (KEEP .env encrypted, exclude keys)
 .env.keys
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/

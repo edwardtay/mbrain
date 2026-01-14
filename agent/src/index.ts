@@ -2,7 +2,15 @@ import express from 'express'
 import cors from 'cors'
 import { CronJob } from 'cron'
 import { fetchProtocolData, type ProtocolData } from './oracle/index.js'
-import { getAIRecommendation, addToHistory, getHistory, type AIRecommendation } from './ai/index.js'
+import {
+  getAIRecommendation,
+  addToHistory,
+  getHistory,
+  getCommitmentRegistry,
+  verifyCommitment,
+  getApyTrend,
+  type AIRecommendation
+} from './ai/index.js'
 import {
   initializeKeeper,
   getKeeperStatus,
@@ -83,6 +91,30 @@ app.post('/api/analyze', async (req, res) => {
 // Get recommendation history
 app.get('/api/history', (req, res) => {
   res.json(getHistory())
+})
+
+// Get APY trend data
+app.get('/api/trends', (req, res) => {
+  res.json(getApyTrend())
+})
+
+// ========== Verifiable AI Commitment Routes ==========
+
+// Get all commitment hashes (verifiable AI decisions)
+app.get('/api/commitments', (req, res) => {
+  res.json(getCommitmentRegistry())
+})
+
+// Verify a specific commitment hash
+app.get('/api/commitments/:hash', (req, res) => {
+  const result = verifyCommitment(req.params.hash)
+  if (!result.valid) {
+    return res.status(404).json({ error: 'Commitment not found or invalid' })
+  }
+  res.json({
+    valid: result.valid,
+    recommendation: result.recommendation,
+  })
 })
 
 // Get keeper status
@@ -191,18 +223,19 @@ const PORT = process.env.PORT || 3001
 
 app.listen(PORT, () => {
   console.log(`
-╔══════════════════════════════════════════════════════════╗
-║                                                          ║
-║   ███╗   ███╗██████╗ ██████╗  █████╗ ██╗███╗   ██╗      ║
-║   ████╗ ████║██╔══██╗██╔══██╗██╔══██╗██║████╗  ██║      ║
-║   ██╔████╔██║██████╔╝██████╔╝███████║██║██╔██╗ ██║      ║
-║   ██║╚██╔╝██║██╔══██╗██╔══██╗██╔══██║██║██║╚██╗██║      ║
-║   ██║ ╚═╝ ██║██████╔╝██║  ██║██║  ██║██║██║ ╚████║      ║
-║   ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝      ║
-║                                                          ║
-║   AI-Powered Yield Optimizer for mYield                  ║
-║                                                          ║
-╚══════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║   ███╗   ███╗ █████╗ ██╗   ██╗███████╗███╗   ██╗            ║
+║   ████╗ ████║██╔══██╗██║   ██║██╔════╝████╗  ██║            ║
+║   ██╔████╔██║███████║██║   ██║█████╗  ██╔██╗ ██║            ║
+║   ██║╚██╔╝██║██╔══██║╚██╗ ██╔╝██╔══╝  ██║╚██╗██║            ║
+║   ██║ ╚═╝ ██║██║  ██║ ╚████╔╝ ███████╗██║ ╚████║            ║
+║   ╚═╝     ╚═╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═══╝            ║
+║                                                              ║
+║   Mantle Maven - AI Yield Expert for mYield                  ║
+║   Verifiable AI • Autonomous Execution • Real-time Analysis  ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
 
 Server running on http://localhost:${PORT}
 
@@ -211,6 +244,9 @@ Endpoints:
   GET  /api/recommendation - Latest AI recommendation
   POST /api/analyze        - Force new analysis
   GET  /api/history        - Recommendation history
+  GET  /api/trends         - APY trend analysis
+  GET  /api/commitments    - Verifiable AI commitment hashes
+  GET  /api/commitments/:hash - Verify specific commitment
   GET  /api/keeper/status  - Keeper wallet status
   POST /api/keeper/rebalance/:vault - Execute rebalance
   POST /api/keeper/harvest/:vault   - Execute harvest

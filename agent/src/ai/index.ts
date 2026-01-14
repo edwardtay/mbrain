@@ -1,9 +1,43 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { keccak256, toHex, encodePacked } from 'viem'
 import type { ProtocolData } from '../oracle/index.js'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
+
+// Historical APY tracking for trend analysis
+const apyHistory: { timestamp: number; usdcApy: number; wethApy: number; lendleUtil: number }[] = []
+
+export function trackApyHistory(data: ProtocolData) {
+  apyHistory.push({
+    timestamp: Date.now(),
+    usdcApy: data.vaults.usdc.apy,
+    wethApy: data.vaults.weth.apy,
+    lendleUtil: data.protocols.lendle.usdcUtilization,
+  })
+  // Keep last 100 entries (about 8 hours at 5 min intervals)
+  if (apyHistory.length > 100) apyHistory.shift()
+}
+
+export function getApyTrend() {
+  if (apyHistory.length < 2) return { usdcTrend: 0, wethTrend: 0, avgUsdcApy: 0, avgWethApy: 0 }
+
+  const recent = apyHistory.slice(-10)
+  const older = apyHistory.slice(0, Math.min(10, apyHistory.length - 10))
+
+  const recentUsdcAvg = recent.reduce((a, b) => a + b.usdcApy, 0) / recent.length
+  const recentWethAvg = recent.reduce((a, b) => a + b.wethApy, 0) / recent.length
+  const olderUsdcAvg = older.length ? older.reduce((a, b) => a + b.usdcApy, 0) / older.length : recentUsdcAvg
+  const olderWethAvg = older.length ? older.reduce((a, b) => a + b.wethApy, 0) / older.length : recentWethAvg
+
+  return {
+    usdcTrend: recentUsdcAvg - olderUsdcAvg,
+    wethTrend: recentWethAvg - olderWethAvg,
+    avgUsdcApy: recentUsdcAvg,
+    avgWethApy: recentWethAvg,
+  }
+}
 
 export interface AIRecommendation {
   action: 'HOLD' | 'REBALANCE' | 'HARVEST'
@@ -16,6 +50,52 @@ export interface AIRecommendation {
   marketAnalysis: string
   riskAssessment: string
   timestamp: number
+  commitmentHash?: string // Verifiable hash of this recommendation
+}
+
+// Generate a commitment hash for verifiable AI recommendations
+export function generateCommitmentHash(rec: AIRecommendation): string {
+  // Create deterministic hash of the recommendation
+  const data = encodePacked(
+    ['string', 'uint8', 'uint256'],
+    [
+      rec.action,
+      rec.confidence,
+      BigInt(rec.timestamp)
+    ]
+  )
+  return keccak256(data)
+}
+
+// Store commitment hashes with their recommendations
+const commitmentRegistry: Map<string, { recommendation: AIRecommendation; blockNumber?: number }> = new Map()
+
+export function registerCommitment(rec: AIRecommendation): string {
+  const hash = generateCommitmentHash(rec)
+  rec.commitmentHash = hash
+  commitmentRegistry.set(hash, { recommendation: rec })
+  return hash
+}
+
+export function verifyCommitment(hash: string): { valid: boolean; recommendation?: AIRecommendation } {
+  const entry = commitmentRegistry.get(hash)
+  if (!entry) return { valid: false }
+
+  // Verify the hash matches
+  const computedHash = generateCommitmentHash(entry.recommendation)
+  return {
+    valid: computedHash === hash,
+    recommendation: entry.recommendation
+  }
+}
+
+export function getCommitmentRegistry(): { hash: string; timestamp: number; action: string; confidence: number }[] {
+  return Array.from(commitmentRegistry.entries()).map(([hash, entry]) => ({
+    hash,
+    timestamp: entry.recommendation.timestamp,
+    action: entry.recommendation.action,
+    confidence: entry.recommendation.confidence,
+  }))
 }
 
 export interface VaultRecommendation {
@@ -61,6 +141,10 @@ You MUST respond with ONLY a valid JSON object (no markdown, no explanation) wit
 }`
 
 export async function getAIRecommendation(data: ProtocolData): Promise<AIRecommendation> {
+  // Track APY history for trend analysis
+  trackApyHistory(data)
+  const trends = getApyTrend()
+
   const userPrompt = `
 Analyze the following DeFi protocol data and provide yield optimization recommendations:
 
@@ -94,6 +178,13 @@ ${data.vaults.weth.adapters.map((a, i) => `  ${i + 1}. ${a.address.slice(0, 10)}
 - Staking APY: ${data.protocols.meth.stakingAPY.toFixed(2)}%
 - Exchange Rate: ${data.protocols.meth.exchangeRate}
 
+## Historical Trend Analysis
+- USDC APY Trend: ${trends.usdcTrend > 0 ? '+' : ''}${trends.usdcTrend.toFixed(2)}% (recent vs older)
+- WETH APY Trend: ${trends.wethTrend > 0 ? '+' : ''}${trends.wethTrend.toFixed(2)}% (recent vs older)
+- Average USDC APY (recent): ${trends.avgUsdcApy.toFixed(2)}%
+- Average WETH APY (recent): ${trends.avgWethApy.toFixed(2)}%
+- Data Points: ${apyHistory.length}
+
 Provide your analysis and recommendations as a JSON object.`
 
   try {
@@ -117,7 +208,7 @@ Provide your analysis and recommendations as a JSON object.`
     // Parse the JSON response
     const parsed = JSON.parse(content.text)
 
-    return {
+    const recommendation: AIRecommendation = {
       action: parsed.action || 'HOLD',
       confidence: parsed.confidence || 50,
       reasoning: parsed.reasoning || 'Unable to generate recommendation',
@@ -137,6 +228,11 @@ Provide your analysis and recommendations as a JSON object.`
       riskAssessment: parsed.riskAssessment || 'N/A',
       timestamp: Date.now(),
     }
+
+    // Register commitment hash for verifiability
+    registerCommitment(recommendation)
+
+    return recommendation
   } catch (error) {
     console.error('Claude recommendation error:', error)
 
