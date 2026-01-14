@@ -356,6 +356,104 @@ export default function Home() {
           )}
         </div>
 
+        {/* Autonomous Agent Section */}
+        <div className="p-6 bg-gradient-to-br from-emerald-900/20 to-emerald-900/5 border border-emerald-500/20 rounded-2xl">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-3 h-3 rounded-full ${keeper?.address ? 'bg-emerald-400 animate-pulse' : 'bg-white/30'}`} />
+            <h2 className="text-lg font-bold">AI Keeper Agent</h2>
+            <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded">
+              {keeper?.address ? 'Watching' : 'Inactive'}
+            </span>
+          </div>
+
+          <p className="text-sm text-white/60 mb-4">
+            Autonomous on-chain execution powered by Claude AI analysis
+          </p>
+
+          {/* Agent Status */}
+          <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <div className="p-4 bg-black/30 rounded-lg">
+              <div className="text-xs text-white/40 mb-1">Keeper Wallet</div>
+              <div className="text-sm font-mono">
+                {keeper?.address ? `${keeper.address.slice(0, 8)}...${keeper.address.slice(-6)}` : 'Not configured'}
+              </div>
+              <div className="text-xs text-white/30 mt-1">{parseFloat(keeper?.balance || '0').toFixed(2)} MNT for gas</div>
+            </div>
+            <div className="p-4 bg-black/30 rounded-lg">
+              <div className="text-xs text-white/40 mb-1">Authorization</div>
+              <div className="flex items-center gap-4 mt-1">
+                <span className={`text-sm ${keeper?.isAuthorized?.usdcVault ? 'text-emerald-400' : 'text-white/30'}`}>
+                  USDC {keeper?.isAuthorized?.usdcVault ? '✓' : '✗'}
+                </span>
+                <span className={`text-sm ${keeper?.isAuthorized?.wethVault ? 'text-emerald-400' : 'text-white/30'}`}>
+                  WETH {keeper?.isAuthorized?.wethVault ? '✓' : '✗'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Planned Action Preview */}
+          {rec && rec.action === 'REBALANCE' && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span className="text-sm font-semibold text-amber-400">Planned Autonomous Action</span>
+              </div>
+              <p className="text-sm text-white/80 mb-2">
+                When drift threshold is exceeded, the keeper will automatically execute:
+              </p>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="px-2 py-1 bg-amber-500/20 text-amber-300 rounded font-mono">
+                  rebalance()
+                </span>
+                <span className="text-white/50">→</span>
+                <span className="text-white/70">
+                  {rec.details?.wethVault?.suggestedAction?.includes('REBALANCE')
+                    ? 'WETH Vault: Shift to higher-yield mETH staking'
+                    : rec.details?.usdcVault?.suggestedAction?.includes('REBALANCE')
+                    ? 'USDC Vault: Optimize allocation'
+                    : 'Rebalance vault allocations'
+                  }
+                </span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/40">Current Status</span>
+                  <span className={data?.vaults?.weth?.needsRebalance || data?.vaults?.usdc?.needsRebalance
+                    ? 'text-amber-400' : 'text-white/50'}>
+                    {data?.vaults?.weth?.needsRebalance || data?.vaults?.usdc?.needsRebalance
+                      ? '⚡ Ready to execute' : '⏳ Waiting for drift threshold'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {rec && rec.action === 'HOLD' && (
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-semibold text-emerald-400">No Action Required</span>
+              </div>
+              <p className="text-sm text-white/70">
+                Allocations are optimal. The keeper is monitoring for any drift that requires rebalancing.
+              </p>
+            </div>
+          )}
+
+          {!rec && (
+            <div className="p-4 bg-white/5 border border-white/10 rounded-lg text-center">
+              <p className="text-sm text-white/50">
+                Run AI analysis to see planned autonomous actions
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Allocation Breakdown */}
         {data && (
           <div className="grid sm:grid-cols-2 gap-4">
