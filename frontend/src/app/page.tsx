@@ -586,29 +586,27 @@ export default function Home() {
           </div>
         )}
 
-        {/* Execution History */}
-        {history.length > 0 && (
+        {/* Execution History - Only show real transactions with txHash */}
+        {history.filter(r => r?.txHash).length > 0 && (
           <div className="p-5 bg-white/[0.03] border border-white/[0.08] rounded-2xl">
             <h3 className="text-sm font-semibold mb-4">Execution History</h3>
             <div className="space-y-2">
-              {history.slice(0, 5).map((record, i) => (
+              {history.filter(r => r?.txHash).slice(0, 5).map((record, i) => (
                 <div key={i} className="flex items-center justify-between py-2 border-b border-white/[0.05] last:border-0">
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${record?.status === 'success' ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                    <span className="text-sm font-medium capitalize">{record?.action || 'unknown'}</span>
+                    <span className="text-sm font-medium capitalize">{record?.action}</span>
                     <span className="text-xs text-white/50">{(record?.vault || '').toUpperCase()}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    {record?.txHash && (
-                      <a
-                        href={`https://explorer.mantle.xyz/tx/${record.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-amber-400 hover:underline font-mono"
-                      >
-                        {record.txHash.slice(0, 8)}...
-                      </a>
-                    )}
+                    <a
+                      href={`https://explorer.mantle.xyz/tx/${record.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-amber-400 hover:underline font-mono"
+                    >
+                      {record.txHash?.slice(0, 10)}...
+                    </a>
                     <span className="text-xs text-white/40">{formatTimeAgo(record?.timestamp || Date.now())}</span>
                   </div>
                 </div>
