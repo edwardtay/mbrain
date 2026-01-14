@@ -268,16 +268,18 @@ export default function Home() {
         </div>
 
         {/* Keeper Status */}
-        {keeper?.address && (
+        {keeper && (
           <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl text-sm">
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full" />
-              <span className="font-mono text-white/50">{keeper.address.slice(0, 6)}...{keeper.address.slice(-4)}</span>
+              <div className={`w-2 h-2 rounded-full ${keeper.address ? 'bg-emerald-400' : 'bg-white/20'}`} />
+              <span className="font-mono text-white/50">
+                {keeper.address ? `${keeper.address.slice(0, 6)}...${keeper.address.slice(-4)}` : 'Keeper not configured'}
+              </span>
             </div>
             <div className="flex items-center gap-4 text-xs text-white/40">
-              <span>{parseFloat(keeper.balance).toFixed(2)} MNT</span>
-              <span className={keeper.isAuthorized.usdcVault ? 'text-emerald-400' : ''}>USDC {keeper.isAuthorized.usdcVault ? '✓' : '✗'}</span>
-              <span className={keeper.isAuthorized.wethVault ? 'text-emerald-400' : ''}>WETH {keeper.isAuthorized.wethVault ? '✓' : '✗'}</span>
+              <span>{parseFloat(keeper.balance || '0').toFixed(2)} MNT</span>
+              <span className={keeper.isAuthorized?.usdcVault ? 'text-emerald-400' : ''}>USDC {keeper.isAuthorized?.usdcVault ? '✓' : '✗'}</span>
+              <span className={keeper.isAuthorized?.wethVault ? 'text-emerald-400' : ''}>WETH {keeper.isAuthorized?.wethVault ? '✓' : '✗'}</span>
             </div>
           </div>
         )}
@@ -316,9 +318,14 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-white/5 mt-16">
-        <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between text-xs text-white/30">
-          <span>mBrain</span>
-          <span>Autonomous yield optimization</span>
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between text-xs text-white/30 mb-3">
+            <span>mBrain</span>
+            <span>Autonomous yield optimization</span>
+          </div>
+          <p className="text-[10px] text-white/20 text-center">
+            Not financial advice. Use at your own risk. Smart contracts are unaudited.
+          </p>
         </div>
       </footer>
     </div>
