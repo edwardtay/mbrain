@@ -1,70 +1,104 @@
-# mBrain
+# Mantle Maven
 
-AI-powered yield optimizer for mYield vaults on Mantle. Uses LLM analysis and oracle data to automate yield strategy decisions.
+AI-powered yield optimization agent for mYield vaults on Mantle. Uses Claude AI for intelligent analysis and an autonomous keeper for on-chain execution.
 
-**Live**: https://mbrain-pi.vercel.app
+**Live Demo**: https://mantle-maven.vercel.app
+**API**: https://mantle-maven-api-660587902574.us-central1.run.app
 **GitHub**: https://github.com/edwardtay/mbrain
+
+## What It Does
+
+Mantle Maven is an autonomous AI agent that:
+1. **Monitors** mYield vault performance and underlying protocol rates in real-time
+2. **Analyzes** yield opportunities using Claude AI
+3. **Recommends** optimal allocation strategies (HOLD/REBALANCE/HARVEST)
+4. **Executes** rebalancing automatically when conditions are met
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         mBrain                               │
-├─────────────────────────────────────────────────────────────┤
-│  Oracle Layer                                                │
-│  ├─ Lendle APY/Utilization (on-chain query)                 │
-│  ├─ mETH staking rate                                        │
-│  └─ mYield vault state (TVL, allocations, needsRebalance)   │
-├─────────────────────────────────────────────────────────────┤
-│  AI Layer (GPT-4)                                            │
-│  ├─ Analyzes protocol data                                   │
-│  ├─ Risk-adjusted recommendations                            │
-│  └─ Confidence scoring                                       │
-├─────────────────────────────────────────────────────────────┤
-│  Keeper Layer                                                │
-│  ├─ Auto-execute rebalance() when confidence > 80%          │
-│  ├─ Auto-execute harvest() for reward compounding           │
-│  └─ Transaction history logging                              │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                       Mantle Maven                               │
+├─────────────────────────────────────────────────────────────────┤
+│  Data Layer (Oracle)                                             │
+│  ├─ Lendle: Supply APY, utilization rates                       │
+│  ├─ mETH: Staking APY, exchange rate                            │
+│  └─ mYield: TVL, allocations, drift status                      │
+├─────────────────────────────────────────────────────────────────┤
+│  AI Layer (Claude)                                               │
+│  ├─ Analyzes yield spreads and risk factors                     │
+│  ├─ Generates actionable recommendations                         │
+│  └─ Confidence scoring (0-100%)                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Keeper Layer (Autonomous Agent)                                 │
+│  ├─ Watches for drift threshold triggers                        │
+│  ├─ Auto-executes rebalance() when conditions met               │
+│  └─ Logs all executions with tx hashes                          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Components
+## Features
 
-### Agent (Backend)
+### Dashboard
+- **Vault Performance**: Real-time APY and TVL for USDC and WETH vaults
+- **Portfolio View**: Your deposits and earnings (connect wallet)
+- **AI Analysis**: On-demand Claude-powered yield analysis
+- **Keeper Agent**: Live status of autonomous execution agent
+- **Allocation Breakdown**: Current adapter allocations with APY
 
-Node.js service that:
-- Fetches live protocol data every 5 minutes
-- Sends data to GPT-4 for analysis
-- Returns actionable recommendations (HOLD/REBALANCE/HARVEST)
-- Can auto-execute keeper functions when authorized
+### AI Agent
+- Powered by Claude (Anthropic)
+- Analyzes yield opportunities across Lendle and mETH
+- Provides confidence-scored recommendations
+- Shows planned autonomous actions before execution
 
-### Dashboard (Frontend)
+### Autonomous Keeper
+- Monitors vault drift thresholds
+- Executes rebalancing when conditions are met
+- Authorized on both USDC and WETH vaults
+- Funded with MNT for gas
 
-Next.js app showing:
-- Real-time protocol data
-- AI recommendations with confidence scores
-- Vault status and allocation breakdowns
-- Execution history
+## Tech Stack
+
+- **Frontend**: Next.js 16, TailwindCSS, TypeScript
+- **Backend**: Node.js, Express, TypeScript
+- **AI**: Claude API (Anthropic)
+- **Blockchain**: Viem, Mantle RPC
+- **Hosting**: Vercel (frontend), Google Cloud Run (backend)
+
+## mYield Integration
+
+```
+mYield Vaults (ERC4626 Tokenized Vaults)
+├─ USDC Vault: 0xcfF09905F8f18B35F5A1Ba6d2822D62B3d8c48bE
+│  └─ Adapter: Lendle USDC (100% allocation)
+└─ WETH Vault: 0x073b61f5Ed26d802b05301e0E019f78Ac1A41D23
+   ├─ Adapter 1: Lendle WETH (60% allocation)
+   └─ Adapter 2: mETH Staking (40% allocation)
+
+Keeper Functions:
+├─ rebalance() - Redistribute to target allocations
+└─ harvest()   - Claim and compound rewards
+```
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/data` | GET | Current protocol data |
+| `/api/data` | GET | Current vault and protocol data |
+| `/api/analyze` | POST | Trigger new AI analysis |
 | `/api/recommendation` | GET | Latest AI recommendation |
-| `/api/analyze` | POST | Force new analysis |
-| `/api/history` | GET | Recommendation history |
-| `/api/keeper/status` | GET | Keeper wallet status |
+| `/api/keeper/status` | GET | Keeper wallet and authorization |
 | `/api/keeper/rebalance/:vault` | POST | Execute rebalance |
 | `/api/keeper/harvest/:vault` | POST | Execute harvest |
 
-## Run
+## Local Development
 
 ```bash
-# Agent
+# Backend
 cd agent
-cp .env.example .env  # Add OPENAI_API_KEY
 npm install
+cp .env.example .env  # Add ANTHROPIC_API_KEY
 npm run dev
 
 # Frontend (separate terminal)
@@ -75,32 +109,34 @@ npm run dev
 
 ## Environment Variables
 
+### Backend (agent/.env)
 ```
-OPENAI_API_KEY=sk-...          # Required for AI recommendations
-KEEPER_PRIVATE_KEY=0x...       # Optional - for auto-execution
-PORT=3001                      # Agent port
+ANTHROPIC_API_KEY=sk-ant-...    # Required for Claude AI
+KEEPER_PRIVATE_KEY=0x...         # For autonomous execution
 ```
 
-## How It Works
-
-1. **Data Collection**: Oracle service queries on-chain data from Lendle, mETH, and mYield contracts
-2. **AI Analysis**: GPT-4 analyzes yields, utilization, risk factors
-3. **Recommendation**: Returns HOLD/REBALANCE/HARVEST with confidence %
-4. **Execution**: If confidence > 80% and keeper is authorized, auto-executes
-
-## Integration with mYield
-
-mBrain reads from and can execute on mYield vaults:
-
+### Frontend (.env.local)
 ```
-mYield Vaults (ERC4626)
-├─ USDC Vault: 0xcfF09905F8f18B35F5A1Ba6d2822D62B3d8c48bE
-└─ WETH Vault: 0x073b61f5Ed26d802b05301e0E019f78Ac1A41D23
-
-Keeper Functions:
-├─ rebalance() - Redistribute funds to target allocations
-└─ harvest()   - Claim and compound rewards
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
+
+## How Autonomous Execution Works
+
+1. **Analysis**: Claude analyzes vault data every 5 minutes
+2. **Recommendation**: If REBALANCE recommended with >80% confidence
+3. **Threshold Check**: Vault's `needsRebalance()` must return true
+4. **Execution**: Keeper calls `rebalance()` on the vault
+5. **Logging**: Transaction hash recorded in execution history
+
+The drift threshold is enforced by the smart contract itself, ensuring rebalancing only happens when allocations have drifted beyond acceptable limits.
+
+## Hackathon Submission
+
+Built for the Mantle Hackathon demonstrating:
+- AI-powered DeFi yield optimization
+- Autonomous on-chain agent execution
+- Integration with mYield ERC4626 vaults
+- Real-time protocol data aggregation
 
 ## License
 
