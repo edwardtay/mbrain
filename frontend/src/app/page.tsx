@@ -43,8 +43,6 @@ interface AIRecommendation {
     usdcVault: { suggestedAction: string; allocationAnalysis: string }
     wethVault: { suggestedAction: string; allocationAnalysis: string }
   }
-  marketAnalysis: string
-  riskAssessment: string
   timestamp: number
 }
 
@@ -197,42 +195,40 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-[#0a0a0a] text-white/90 text-sm">
       {/* Header */}
       <header className="border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/icon.svg" alt="" className="w-10 h-10" />
-            <span className="text-lg font-bold">Mantle Maven</span>
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <img src="/icon.svg" alt="" className="w-8 h-8" />
+            <span className="font-semibold">Mantle Maven</span>
           </div>
-
           <div className="relative" ref={walletMenuRef}>
             <button
               onClick={() => wallet ? setWalletMenuOpen(!walletMenuOpen) : connectWallet()}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-lg text-sm font-semibold transition-all"
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/15 rounded text-xs font-medium transition-all"
             >
-              {wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Connect Wallet'}
+              {wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : 'Connect'}
             </button>
-
             {walletMenuOpen && wallet && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl z-50">
-                <div className="p-3 border-b border-white/10">
-                  <div className="text-xs text-white/50">Connected</div>
-                  <div className="text-sm font-mono mt-1">{wallet.slice(0, 8)}...{wallet.slice(-6)}</div>
+              <div className="absolute right-0 mt-1 w-44 bg-[#141414] border border-white/10 rounded shadow-xl z-50 text-xs">
+                <div className="p-2 border-b border-white/10">
+                  <div className="text-white/40">Connected</div>
+                  <div className="font-mono mt-0.5">{wallet.slice(0, 8)}...{wallet.slice(-6)}</div>
                 </div>
-                <button onClick={copyAddress} className="w-full px-3 py-2 text-left text-sm hover:bg-white/5">
+                <button onClick={copyAddress} className="w-full px-2 py-1.5 text-left hover:bg-white/5">
                   {copied ? 'Copied!' : 'Copy Address'}
                 </button>
-                <a href={`https://explorer.mantle.xyz/address/${wallet}`} target="_blank" rel="noopener noreferrer" className="block px-3 py-2 text-sm hover:bg-white/5">
+                <a href={`https://explorer.mantle.xyz/address/${wallet}`} target="_blank" rel="noopener noreferrer" className="block px-2 py-1.5 hover:bg-white/5">
                   View on Explorer
                 </a>
-                <button onClick={disconnectWallet} className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-white/5">
+                <button onClick={disconnectWallet} className="w-full px-2 py-1.5 text-left text-red-400 hover:bg-white/5">
                   Disconnect
                 </button>
               </div>
@@ -241,247 +237,165 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-4 space-y-4">
 
-        {/* Hero - Vault Performance */}
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="p-6 bg-gradient-to-br from-blue-900/30 to-blue-900/10 border border-blue-500/20 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-white/60">USDC Vault</span>
-              <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded">Stablecoin</span>
+        {/* Vault Cards */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-4 bg-white/[0.03] border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/50 text-xs">USDC Vault</span>
+              <a href={`https://explorer.mantle.xyz/address/${VAULT_ADDRESSES.usdc}`} target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white/50 text-xs">
+                Verify ↗
+              </a>
             </div>
-            <div className="text-4xl font-bold text-blue-400">{data?.vaults?.usdc?.apy?.toFixed(1) || '0'}%</div>
-            <div className="text-sm text-white/50 mt-1">APY</div>
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <div className="text-xs text-white/40">TVL</div>
-              <div className="text-lg font-semibold">${parseFloat(data?.vaults?.usdc?.tvl || '0').toFixed(0)}</div>
-            </div>
+            <div className="text-2xl font-bold">{data?.vaults?.usdc?.apy?.toFixed(1) || '0'}%</div>
+            <div className="text-white/40 text-xs mt-1">${parseFloat(data?.vaults?.usdc?.tvl || '0').toFixed(0)} TVL</div>
           </div>
-
-          <div className="p-6 bg-gradient-to-br from-purple-900/30 to-purple-900/10 border border-purple-500/20 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-white/60">WETH Vault</span>
-              <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">ETH Yield</span>
+          <div className="p-4 bg-white/[0.03] border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/50 text-xs">WETH Vault</span>
+              <a href={`https://explorer.mantle.xyz/address/${VAULT_ADDRESSES.weth}`} target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white/50 text-xs">
+                Verify ↗
+              </a>
             </div>
-            <div className="text-4xl font-bold text-purple-400">{data?.vaults?.weth?.apy?.toFixed(1) || '0'}%</div>
-            <div className="text-sm text-white/50 mt-1">APY</div>
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <div className="text-xs text-white/40">TVL</div>
-              <div className="text-lg font-semibold">{parseFloat(data?.vaults?.weth?.tvl || '0').toFixed(4)} WETH</div>
-            </div>
+            <div className="text-2xl font-bold">{data?.vaults?.weth?.apy?.toFixed(1) || '0'}%</div>
+            <div className="text-white/40 text-xs mt-1">{parseFloat(data?.vaults?.weth?.tvl || '0').toFixed(4)} WETH TVL</div>
           </div>
         </div>
 
-        {/* Your Portfolio */}
+        {/* Portfolio */}
         {wallet && portfolio && (
-          <div className="p-5 bg-white/[0.03] border border-white/10 rounded-2xl">
-            <h2 className="text-sm font-semibold text-white/60 mb-4">Your Deposits</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
-                <div>
-                  <div className="text-xs text-white/50">USDC Vault</div>
-                  <div className="text-xl font-bold">${portfolio.usdc.value}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-white/50">Earning</div>
-                  <div className="text-sm text-emerald-400">{data?.vaults?.usdc?.apy?.toFixed(1)}% APY</div>
-                </div>
+          <div className="p-3 bg-white/[0.02] border border-white/10 rounded-lg">
+            <div className="text-white/40 text-xs mb-2">Your Deposits</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex justify-between">
+                <span className="text-white/60">USDC</span>
+                <span className="font-medium">${portfolio.usdc.value}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
-                <div>
-                  <div className="text-xs text-white/50">WETH Vault</div>
-                  <div className="text-xl font-bold">{portfolio.weth.value}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-white/50">Earning</div>
-                  <div className="text-sm text-emerald-400">{data?.vaults?.weth?.apy?.toFixed(1)}% APY</div>
-                </div>
+              <div className="flex justify-between">
+                <span className="text-white/60">WETH</span>
+                <span className="font-medium">{portfolio.weth.value}</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* AI Analysis Section */}
-        <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold">AI Analysis</h2>
-              <p className="text-sm text-white/50">Powered by Claude</p>
-            </div>
+        {/* AI Analysis */}
+        <div className="p-4 bg-white/[0.02] border border-white/10 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs text-white/40">AI Analysis • Claude</div>
             <button
               onClick={analyze}
               disabled={analyzing}
-              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/50 text-black rounded-lg text-sm font-semibold transition-all"
+              className="px-3 py-1 bg-white/10 hover:bg-white/15 disabled:opacity-50 rounded text-xs font-medium transition-all"
             >
-              {analyzing ? 'Analyzing...' : 'Analyze Vaults'}
+              {analyzing ? 'Analyzing...' : 'Analyze'}
             </button>
           </div>
 
           {!rec && !analyzing && (
-            <div className="text-center py-8 text-white/40">
-              Click "Analyze Vaults" to get AI-powered yield insights
+            <div className="text-center py-6 text-white/30">
+              Click Analyze for AI recommendations
             </div>
           )}
 
           {analyzing && (
-            <div className="flex items-center justify-center gap-3 py-8">
-              <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-white/60">Analyzing market conditions...</span>
+            <div className="flex items-center justify-center gap-2 py-6">
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+              <span className="text-white/40">Analyzing...</span>
             </div>
           )}
 
           {rec && !analyzing && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <span className={`text-2xl font-bold ${rec.action === 'HOLD' ? 'text-emerald-400' : rec.action === 'REBALANCE' ? 'text-amber-400' : 'text-blue-400'}`}>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={`text-lg font-bold ${rec.action === 'HOLD' ? 'text-green-400' : rec.action === 'REBALANCE' ? 'text-yellow-400' : 'text-white'}`}>
                   {rec.action}
                 </span>
-                <span className="text-sm text-white/50">{rec.confidence}% confidence</span>
-                <span className="text-xs text-white/30">{formatTimeAgo(rec.timestamp)}</span>
+                <span className="text-white/40">{rec.confidence}%</span>
+                <span className="text-white/20">{formatTimeAgo(rec.timestamp)}</span>
               </div>
-
-              <p className="text-white/80 leading-relaxed">{rec.reasoning}</p>
-
-              <div className="grid sm:grid-cols-2 gap-3 mt-4">
-                <div className="p-4 bg-black/30 rounded-lg">
-                  <div className="text-sm font-semibold text-blue-400 mb-2">USDC Vault</div>
-                  <p className="text-sm text-white/70">{rec.details?.usdcVault?.suggestedAction || 'No action needed'}</p>
+              <p className="text-white/60 leading-relaxed">{rec.reasoning}</p>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="p-2 bg-black/30 rounded text-xs">
+                  <div className="text-white/40 mb-1">USDC</div>
+                  <div className="text-white/70">{rec.details?.usdcVault?.suggestedAction || 'Hold'}</div>
                 </div>
-                <div className="p-4 bg-black/30 rounded-lg">
-                  <div className="text-sm font-semibold text-purple-400 mb-2">WETH Vault</div>
-                  <p className="text-sm text-white/70">{rec.details?.wethVault?.suggestedAction || 'No action needed'}</p>
+                <div className="p-2 bg-black/30 rounded text-xs">
+                  <div className="text-white/40 mb-1">WETH</div>
+                  <div className="text-white/70">{rec.details?.wethVault?.suggestedAction || 'Hold'}</div>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Autonomous Agent Section */}
-        <div className="p-6 bg-gradient-to-br from-emerald-900/20 to-emerald-900/5 border border-emerald-500/20 rounded-2xl">
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`w-3 h-3 rounded-full ${keeper?.address ? 'bg-emerald-400 animate-pulse' : 'bg-white/30'}`} />
-            <h2 className="text-lg font-bold">AI Keeper Agent</h2>
-            <span className="text-xs px-2 py-1 bg-emerald-500/20 text-emerald-400 rounded">
-              {keeper?.address ? 'Watching' : 'Inactive'}
-            </span>
+        {/* Keeper Agent */}
+        <div className="p-4 bg-white/[0.02] border border-white/10 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <div className={`w-2 h-2 rounded-full ${keeper?.address ? 'bg-green-400' : 'bg-white/20'}`} />
+            <span className="text-xs text-white/40">AI Keeper Agent</span>
+            <span className="text-xs text-white/20">{keeper?.address ? 'Active' : 'Inactive'}</span>
           </div>
 
-          <p className="text-sm text-white/60 mb-4">
-            Autonomous on-chain execution powered by Claude AI analysis
-          </p>
-
-          {/* Agent Status */}
-          <div className="grid sm:grid-cols-2 gap-4 mb-4">
-            <div className="p-4 bg-black/30 rounded-lg">
-              <div className="text-xs text-white/40 mb-1">Keeper Wallet</div>
-              <div className="text-sm font-mono">
-                {keeper?.address ? `${keeper.address.slice(0, 8)}...${keeper.address.slice(-6)}` : 'Not configured'}
+          <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+            <div>
+              <div className="text-white/30">Wallet</div>
+              <div className="font-mono text-white/60">
+                {keeper?.address ? (
+                  <a href={`https://explorer.mantle.xyz/address/${keeper.address}`} target="_blank" rel="noopener noreferrer" className="hover:text-white/80">
+                    {keeper.address.slice(0, 8)}...{keeper.address.slice(-6)} ↗
+                  </a>
+                ) : 'Not configured'}
               </div>
-              <div className="text-xs text-white/30 mt-1">{parseFloat(keeper?.balance || '0').toFixed(2)} MNT for gas</div>
             </div>
-            <div className="p-4 bg-black/30 rounded-lg">
-              <div className="text-xs text-white/40 mb-1">Authorization</div>
-              <div className="flex items-center gap-4 mt-1">
-                <span className={`text-sm ${keeper?.isAuthorized?.usdcVault ? 'text-emerald-400' : 'text-white/30'}`}>
+            <div>
+              <div className="text-white/30">Authorization</div>
+              <div className="flex gap-2 text-white/60">
+                <span className={keeper?.isAuthorized?.usdcVault ? 'text-green-400' : ''}>
                   USDC {keeper?.isAuthorized?.usdcVault ? '✓' : '✗'}
                 </span>
-                <span className={`text-sm ${keeper?.isAuthorized?.wethVault ? 'text-emerald-400' : 'text-white/30'}`}>
+                <span className={keeper?.isAuthorized?.wethVault ? 'text-green-400' : ''}>
                   WETH {keeper?.isAuthorized?.wethVault ? '✓' : '✗'}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Planned Action Preview */}
           {rec && rec.action === 'REBALANCE' && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span className="text-sm font-semibold text-amber-400">Planned Autonomous Action</span>
+            <div className="p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs">
+              <div className="text-yellow-400 font-medium mb-1">Planned Action</div>
+              <div className="text-white/60">
+                Will execute <span className="font-mono text-yellow-300">rebalance()</span> when drift threshold exceeded
               </div>
-              <p className="text-sm text-white/80 mb-2">
-                When drift threshold is exceeded, the keeper will automatically execute:
-              </p>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="px-2 py-1 bg-amber-500/20 text-amber-300 rounded font-mono">
-                  rebalance()
-                </span>
-                <span className="text-white/50">→</span>
-                <span className="text-white/70">
-                  {rec.details?.wethVault?.suggestedAction?.includes('REBALANCE')
-                    ? 'WETH Vault: Shift to higher-yield mETH staking'
-                    : rec.details?.usdcVault?.suggestedAction?.includes('REBALANCE')
-                    ? 'USDC Vault: Optimize allocation'
-                    : 'Rebalance vault allocations'
-                  }
-                </span>
+              <div className="text-white/40 mt-1">
+                Status: {data?.vaults?.weth?.needsRebalance || data?.vaults?.usdc?.needsRebalance
+                  ? 'Ready to execute' : 'Waiting for drift'}
               </div>
-              <div className="mt-3 pt-3 border-t border-white/10">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/40">Current Status</span>
-                  <span className={data?.vaults?.weth?.needsRebalance || data?.vaults?.usdc?.needsRebalance
-                    ? 'text-amber-400' : 'text-white/50'}>
-                    {data?.vaults?.weth?.needsRebalance || data?.vaults?.usdc?.needsRebalance
-                      ? '⚡ Ready to execute' : '⏳ Waiting for drift threshold'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {rec && rec.action === 'HOLD' && (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-semibold text-emerald-400">No Action Required</span>
-              </div>
-              <p className="text-sm text-white/70">
-                Allocations are optimal. The keeper is monitoring for any drift that requires rebalancing.
-              </p>
-            </div>
-          )}
-
-          {!rec && (
-            <div className="p-4 bg-white/5 border border-white/10 rounded-lg text-center">
-              <p className="text-sm text-white/50">
-                Run AI analysis to see planned autonomous actions
-              </p>
             </div>
           )}
         </div>
 
-        {/* Allocation Breakdown */}
+        {/* Allocations */}
         {data && (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {(['usdc', 'weth'] as const).map((vault) => {
               const v = vault === 'usdc' ? data.vaults.usdc : data.vaults.weth
               return (
-                <div key={vault} className="p-5 bg-white/[0.02] border border-white/10 rounded-2xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-semibold">{vault.toUpperCase()} Allocation</span>
-                    {v.needsRebalance && (
-                      <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-400 rounded">Drift Detected</span>
-                    )}
+                <div key={vault} className="p-3 bg-white/[0.02] border border-white/10 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-white/40">{vault.toUpperCase()} Allocation</span>
+                    {v.needsRebalance && <span className="text-xs text-yellow-400">Drift</span>}
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {v.adapters.map((a, i) => (
-                      <div key={i}>
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-white/60">{i === 0 ? 'Lendle' : 'mETH Staking'}</span>
-                          <span className="text-emerald-400">{a.apy.toFixed(1)}% APY</span>
+                      <div key={i} className="text-xs">
+                        <div className="flex justify-between text-white/50 mb-1">
+                          <span>{i === 0 ? 'Lendle' : 'mETH'}</span>
+                          <span>{a.apy.toFixed(1)}% • {a.allocation}%</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${vault === 'usdc' ? 'bg-blue-500' : 'bg-purple-500'}`}
-                              style={{ width: `${a.allocation}%` }}
-                            />
-                          </div>
-                          <span className="text-sm text-white/70 w-12 text-right">{a.allocation}%</span>
+                        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-white/30 rounded-full" style={{ width: `${a.allocation}%` }} />
                         </div>
                       </div>
                     ))}
@@ -494,28 +408,24 @@ export default function Home() {
 
         {/* Protocol Rates */}
         {data && (
-          <div className="p-5 bg-white/[0.02] border border-white/10 rounded-2xl">
-            <h3 className="text-sm font-semibold text-white/60 mb-4">Underlying Protocol Rates</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-3 bg-white/[0.02] border border-white/10 rounded-lg">
+            <div className="text-xs text-white/40 mb-2">Protocol Rates</div>
+            <div className="grid grid-cols-4 gap-3 text-xs">
               <div>
-                <div className="text-xs text-white/40">Lendle USDC</div>
-                <div className="text-lg font-semibold">{data.protocols?.lendle?.usdcSupplyAPY?.toFixed(1) || '0'}%</div>
-                <div className="text-xs text-white/30">{data.protocols?.lendle?.usdcUtilization?.toFixed(0)}% util</div>
+                <div className="text-white/30">Lendle USDC</div>
+                <div className="font-medium">{data.protocols?.lendle?.usdcSupplyAPY?.toFixed(1)}%</div>
               </div>
               <div>
-                <div className="text-xs text-white/40">Lendle WETH</div>
-                <div className="text-lg font-semibold">{data.protocols?.lendle?.wethSupplyAPY?.toFixed(1) || '0'}%</div>
-                <div className="text-xs text-white/30">{data.protocols?.lendle?.wethUtilization?.toFixed(0)}% util</div>
+                <div className="text-white/30">Lendle WETH</div>
+                <div className="font-medium">{data.protocols?.lendle?.wethSupplyAPY?.toFixed(1)}%</div>
               </div>
               <div>
-                <div className="text-xs text-white/40">mETH Staking</div>
-                <div className="text-lg font-semibold">{data.protocols?.meth?.stakingAPY?.toFixed(1) || '0'}%</div>
-                <div className="text-xs text-white/30">{data.protocols?.meth?.exchangeRate?.toFixed(3)} rate</div>
+                <div className="text-white/30">mETH Staking</div>
+                <div className="font-medium">{data.protocols?.meth?.stakingAPY?.toFixed(1)}%</div>
               </div>
               <div>
-                <div className="text-xs text-white/40">Keeper</div>
-                <div className="text-lg font-semibold">{keeper?.address ? 'Active' : 'Inactive'}</div>
-                <div className="text-xs text-white/30">{parseFloat(keeper?.balance || '0').toFixed(2)} MNT</div>
+                <div className="text-white/30">Gas Balance</div>
+                <div className="font-medium">{parseFloat(keeper?.balance || '0').toFixed(2)} MNT</div>
               </div>
             </div>
           </div>
@@ -523,14 +433,10 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 mt-12">
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center">
-          <p className="text-sm text-white/40">
-            Mantle Maven - AI-Powered Yield Optimization for mYield Vaults
-          </p>
-          <p className="text-xs text-white/30 mt-2">
-            Not financial advice. Smart contracts are unaudited.
-          </p>
+      <footer className="border-t border-white/10 mt-8">
+        <div className="max-w-4xl mx-auto px-4 py-4 text-center text-xs text-white/30">
+          <div>Mantle Maven • AI Yield Optimization</div>
+          <div className="mt-1">Contracts unaudited. Not financial advice.</div>
         </div>
       </footer>
     </div>

@@ -68,11 +68,26 @@ Mantle Maven is an autonomous AI agent that:
 
 ## mYield Integration
 
+### Vault Contracts (Mantle Mainnet)
+
+| Vault | Address | Explorer |
+|-------|---------|----------|
+| USDC Vault | `0xcfF09905F8f18B35F5A1Ba6d2822D62B3d8c48bE` | [View on Explorer](https://explorer.mantle.xyz/address/0xcfF09905F8f18B35F5A1Ba6d2822D62B3d8c48bE) |
+| WETH Vault | `0x073b61f5Ed26d802b05301e0E019f78Ac1A41D23` | [View on Explorer](https://explorer.mantle.xyz/address/0x073b61f5Ed26d802b05301e0E019f78Ac1A41D23) |
+
+### Underlying Protocols
+
+| Protocol | Description | Explorer |
+|----------|-------------|----------|
+| Lendle | Lending/borrowing on Mantle | [Website](https://lendle.xyz) |
+| mETH | Mantle staked ETH | [Website](https://www.mantle.xyz/meth) |
+
+### Vault Architecture
 ```
 mYield Vaults (ERC4626 Tokenized Vaults)
-├─ USDC Vault: 0xcfF09905F8f18B35F5A1Ba6d2822D62B3d8c48bE
+├─ USDC Vault
 │  └─ Adapter: Lendle USDC (100% allocation)
-└─ WETH Vault: 0x073b61f5Ed26d802b05301e0E019f78Ac1A41D23
+└─ WETH Vault
    ├─ Adapter 1: Lendle WETH (60% allocation)
    └─ Adapter 2: mETH Staking (40% allocation)
 
