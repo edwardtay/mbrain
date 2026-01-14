@@ -271,7 +271,7 @@ export default function Home() {
           action,
           vault,
           txHash: result.txHash,
-          status: result.success ? 'success' : 'failed',
+          status: (result.success ? 'success' : 'failed') as 'success' | 'failed',
           gasUsed: result.gasUsed,
         }, ...prev].slice(0, 10))
       }
