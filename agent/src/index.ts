@@ -230,12 +230,12 @@ Endpoints:
       latestData = await fetchProtocolData()
       console.log('Protocol data fetched successfully')
 
-      if (process.env.OPENAI_API_KEY) {
+      if (process.env.ANTHROPIC_API_KEY) {
         latestRecommendation = await getAIRecommendation(latestData)
         addToHistory(latestRecommendation)
         console.log(`Initial recommendation: ${latestRecommendation.action}`)
       } else {
-        console.log('OPENAI_API_KEY not set - AI recommendations disabled')
+        console.log('ANTHROPIC_API_KEY not set - AI recommendations disabled')
       }
     } catch (error) {
       console.error('Initial analysis error:', error)

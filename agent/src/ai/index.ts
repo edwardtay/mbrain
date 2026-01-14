@@ -1,8 +1,8 @@
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import type { ProtocolData } from '../oracle/index.js'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
 export interface AIRecommendation {
@@ -41,7 +41,7 @@ When analyzing, consider:
 
 Provide clear, actionable recommendations with confidence levels.
 
-Format your response as JSON with the following structure:
+You MUST respond with ONLY a valid JSON object (no markdown, no explanation) with this exact structure:
 {
   "action": "HOLD" | "REBALANCE" | "HARVEST",
   "confidence": 0-100,
@@ -94,26 +94,28 @@ ${data.vaults.weth.adapters.map((a, i) => `  ${i + 1}. ${a.address.slice(0, 10)}
 - Staking APY: ${data.protocols.meth.stakingAPY.toFixed(2)}%
 - Exchange Rate: ${data.protocols.meth.exchangeRate}
 
-Provide your analysis and recommendations.`
+Provide your analysis and recommendations as a JSON object.`
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
+        {
+          role: 'user',
+          content: userPrompt,
+        },
       ],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-      max_tokens: 1000,
+      system: SYSTEM_PROMPT,
     })
 
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from AI')
+    const content = response.content[0]
+    if (content.type !== 'text') {
+      throw new Error('No text response from Claude')
     }
 
-    const parsed = JSON.parse(content)
+    // Parse the JSON response
+    const parsed = JSON.parse(content.text)
 
     return {
       action: parsed.action || 'HOLD',
@@ -136,7 +138,7 @@ Provide your analysis and recommendations.`
       timestamp: Date.now(),
     }
   } catch (error) {
-    console.error('AI recommendation error:', error)
+    console.error('Claude recommendation error:', error)
 
     // Fallback to rule-based recommendation
     return getFallbackRecommendation(data)

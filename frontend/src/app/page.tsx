@@ -509,7 +509,7 @@ export default function Home() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h2 className="text-lg font-bold mb-1">AI Recommendation</h2>
-                    <p className="text-sm text-gray-400">Powered by GPT-4</p>
+                    <p className="text-sm text-gray-400">Powered by Claude</p>
                   </div>
                   <div className={`px-4 py-2 rounded-lg border ${actionColor[recommendation.action]}`}>
                     <div className="text-lg font-bold">{recommendation.action}</div>
