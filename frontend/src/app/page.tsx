@@ -6,14 +6,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 interface ProtocolData {
   timestamp: number
-  vaults: {
-    usdc: VaultData
-    weth: VaultData
-  }
-  protocols: {
-    lendle: LendleData
-    meth: MethData
-  }
+  vaults: { usdc: VaultData; weth: VaultData }
+  protocols: { lendle: LendleData; meth: MethData }
 }
 
 interface VaultData {
@@ -21,15 +15,7 @@ interface VaultData {
   tvl: string
   apy: number
   needsRebalance: boolean
-  adapters: AdapterData[]
-}
-
-interface AdapterData {
-  address: string
-  allocation: number
-  deposited: string
-  apy: number
-  active: boolean
+  adapters: { address: string; allocation: number; deposited: string; apy: number; active: boolean }[]
 }
 
 interface LendleData {
@@ -60,718 +46,279 @@ interface AIRecommendation {
 interface KeeperStatus {
   address: string | null
   balance: string
-  isAuthorized: {
-    usdcVault: boolean
-    wethVault: boolean
-  }
+  isAuthorized: { usdcVault: boolean; wethVault: boolean }
 }
 
 interface AgentConfig {
   enabled: boolean
-  confidenceThreshold: number
-  autoRebalance: boolean
-  autoHarvest: boolean
-}
-
-interface ExecutionLog {
-  timestamp: number
-  action: string
-  vault: string
-  success: boolean
-  txHash?: string
-  error?: string
-  triggeredBy: 'agent' | 'manual'
-}
-
-interface ExecuteModalProps {
-  isOpen: boolean
-  onClose: () => void
-  action: 'rebalance' | 'harvest'
-  vault: 'usdc' | 'weth'
-  onConfirm: () => void
-  executing: boolean
-}
-
-function ExecuteModal({ isOpen, onClose, action, vault, onConfirm, executing }: ExecuteModalProps) {
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
-      <div className="relative bg-gray-900 rounded-2xl border border-gray-700 p-6 max-w-md w-full mx-4">
-        <h3 className="text-xl font-bold mb-2">Confirm {action === 'rebalance' ? 'Rebalance' : 'Harvest'}</h3>
-        <p className="text-gray-400 mb-4">
-          You are about to execute <span className="text-purple-400 font-medium">{action}()</span> on the{' '}
-          <span className="text-white font-medium">{vault.toUpperCase()} Vault</span>.
-        </p>
-        <div className="p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg mb-4">
-          <p className="text-yellow-400 text-sm">
-            This will send a transaction to the blockchain. Make sure you understand the implications.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            disabled={executing}
-            className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded-lg font-medium transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={executing}
-            className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg font-medium transition-colors"
-          >
-            {executing ? 'Executing...' : 'Confirm'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  threshold: number
 }
 
 export default function Home() {
   const [data, setData] = useState<ProtocolData | null>(null)
-  const [recommendation, setRecommendation] = useState<AIRecommendation | null>(null)
-  const [keeperStatus, setKeeperStatus] = useState<KeeperStatus | null>(null)
+  const [rec, setRec] = useState<AIRecommendation | null>(null)
+  const [keeper, setKeeper] = useState<KeeperStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Agent mode state
-  const [agentConfig, setAgentConfig] = useState<AgentConfig>({
-    enabled: false,
-    confidenceThreshold: 80,
-    autoRebalance: true,
-    autoHarvest: false,
-  })
-  const [executionLogs, setExecutionLogs] = useState<ExecutionLog[]>([])
-  const [agentThinking, setAgentThinking] = useState<string | null>(null)
-
-  // Execute modal state
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalAction, setModalAction] = useState<'rebalance' | 'harvest'>('rebalance')
-  const [modalVault, setModalVault] = useState<'usdc' | 'weth'>('usdc')
-  const [executing, setExecuting] = useState(false)
-  const [executionResult, setExecutionResult] = useState<{ success: boolean; message: string } | null>(null)
-
-  const addExecutionLog = (log: Omit<ExecutionLog, 'timestamp'>) => {
-    setExecutionLogs(prev => [{ ...log, timestamp: Date.now() }, ...prev].slice(0, 50))
-  }
+  const [agent, setAgent] = useState<AgentConfig>({ enabled: false, threshold: 80 })
+  const [thinking, setThinking] = useState<string | null>(null)
 
   const fetchData = async () => {
     try {
-      const [dataRes, recRes, keeperRes] = await Promise.all([
-        fetch(`${API_URL}/api/data`),
-        fetch(`${API_URL}/api/recommendation`),
-        fetch(`${API_URL}/api/keeper/status`),
+      const [d, r, k] = await Promise.all([
+        fetch(`${API_URL}/api/data`).then(r => r.ok ? r.json() : null),
+        fetch(`${API_URL}/api/recommendation`).then(r => r.ok ? r.json() : null),
+        fetch(`${API_URL}/api/keeper/status`).then(r => r.ok ? r.json() : null),
       ])
-
-      if (dataRes.ok) {
-        setData(await dataRes.json())
-      }
-      if (recRes.ok) {
-        setRecommendation(await recRes.json())
-      }
-      if (keeperRes.ok) {
-        setKeeperStatus(await keeperRes.json())
-      }
-      setError(null)
-    } catch (err) {
-      setError('Failed to connect to mBrain agent. Is it running?')
-    } finally {
-      setLoading(false)
-    }
+      if (d) setData(d)
+      if (r) setRec(r)
+      if (k) setKeeper(k)
+    } catch {} finally { setLoading(false) }
   }
 
-  const runAnalysis = async () => {
+  const analyze = async () => {
     setAnalyzing(true)
-    setAgentThinking('Fetching latest protocol data...')
+    setThinking('Analyzing...')
     try {
       const res = await fetch(`${API_URL}/api/analyze`, { method: 'POST' })
       if (res.ok) {
-        setAgentThinking('Analyzing with GPT-4...')
         const result = await res.json()
         setData(result.data)
-        setRecommendation(result.recommendation)
-        setAgentThinking(null)
+        setRec(result.recommendation)
       }
-    } catch (err) {
-      setError('Analysis failed')
-      setAgentThinking(null)
-    } finally {
-      setAnalyzing(false)
-    }
+    } catch {} finally { setAnalyzing(false); setThinking(null) }
   }
 
-  const executeAgentAction = useCallback(async (action: 'rebalance' | 'harvest', vault: 'usdc' | 'weth') => {
-    setAgentThinking(`Executing ${action} on ${vault.toUpperCase()} vault...`)
+  const execute = useCallback(async (action: string, vault: string) => {
+    setThinking(`Executing ${action}...`)
     try {
-      const res = await fetch(`${API_URL}/api/keeper/${action}/${vault}`, { method: 'POST' })
-      const result = await res.json()
-
-      addExecutionLog({
-        action,
-        vault,
-        success: result.success,
-        txHash: result.txHash,
-        error: result.error,
-        triggeredBy: 'agent',
-      })
-
-      if (result.success) {
-        setExecutionResult({ success: true, message: `Agent executed ${action} on ${vault.toUpperCase()}! TX: ${result.txHash?.slice(0, 10)}...` })
-        setTimeout(fetchData, 2000)
-      } else {
-        setExecutionResult({ success: false, message: result.error || 'Agent execution failed' })
-      }
-    } catch (err) {
-      addExecutionLog({
-        action,
-        vault,
-        success: false,
-        error: 'Network error',
-        triggeredBy: 'agent',
-      })
-      setExecutionResult({ success: false, message: 'Agent failed to execute transaction' })
-    } finally {
-      setAgentThinking(null)
-    }
+      await fetch(`${API_URL}/api/keeper/${action}/${vault}`, { method: 'POST' })
+      setTimeout(fetchData, 2000)
+    } catch {} finally { setThinking(null) }
   }, [])
-
-  // Agent autonomous loop
-  useEffect(() => {
-    if (!agentConfig.enabled || !recommendation || !keeperStatus) return
-
-    const shouldAct = recommendation.confidence >= agentConfig.confidenceThreshold
-
-    if (shouldAct && recommendation.action === 'REBALANCE' && agentConfig.autoRebalance) {
-      // Check which vaults need rebalancing
-      if (data?.vaults.usdc.needsRebalance && keeperStatus.isAuthorized.usdcVault) {
-        setAgentThinking('Agent detected USDC vault needs rebalancing...')
-        setTimeout(() => executeAgentAction('rebalance', 'usdc'), 2000)
-      } else if (data?.vaults.weth.needsRebalance && keeperStatus.isAuthorized.wethVault) {
-        setAgentThinking('Agent detected WETH vault needs rebalancing...')
-        setTimeout(() => executeAgentAction('rebalance', 'weth'), 2000)
-      }
-    }
-
-    if (shouldAct && recommendation.action === 'HARVEST' && agentConfig.autoHarvest) {
-      if (keeperStatus.isAuthorized.usdcVault) {
-        setAgentThinking('Agent initiating harvest...')
-        setTimeout(() => executeAgentAction('harvest', 'usdc'), 2000)
-      }
-    }
-  }, [agentConfig, recommendation, keeperStatus, data, executeAgentAction])
-
-  const openExecuteModal = (action: 'rebalance' | 'harvest', vault: 'usdc' | 'weth') => {
-    setModalAction(action)
-    setModalVault(vault)
-    setModalOpen(true)
-    setExecutionResult(null)
-  }
-
-  const executeAction = async () => {
-    setExecuting(true)
-    try {
-      const res = await fetch(`${API_URL}/api/keeper/${modalAction}/${modalVault}`, { method: 'POST' })
-      const result = await res.json()
-
-      addExecutionLog({
-        action: modalAction,
-        vault: modalVault,
-        success: result.success,
-        txHash: result.txHash,
-        error: result.error,
-        triggeredBy: 'manual',
-      })
-
-      if (result.success) {
-        setExecutionResult({ success: true, message: `${modalAction} executed successfully! TX: ${result.txHash?.slice(0, 10)}...` })
-        setTimeout(fetchData, 2000)
-      } else {
-        setExecutionResult({ success: false, message: result.error || 'Execution failed' })
-      }
-    } catch (err) {
-      setExecutionResult({ success: false, message: 'Failed to execute transaction' })
-    } finally {
-      setExecuting(false)
-      setModalOpen(false)
-    }
-  }
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 30000)
-    return () => clearInterval(interval)
+    const i = setInterval(fetchData, 30000)
+    return () => clearInterval(i)
   }, [])
 
-  const actionColor = {
-    HOLD: 'text-green-400 bg-green-400/10 border-green-400/20',
-    REBALANCE: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
-    HARVEST: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+  useEffect(() => {
+    if (!agent.enabled || !rec || !keeper || !data) return
+    if (rec.confidence >= agent.threshold && rec.action === 'REBALANCE') {
+      if (data.vaults.weth.needsRebalance && keeper.isAuthorized.wethVault) {
+        execute('rebalance', 'weth')
+      }
+    }
+  }, [agent, rec, keeper, data, execute])
+
+  const actionStyles = {
+    HOLD: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 text-emerald-400',
+    REBALANCE: 'from-amber-500/20 to-amber-600/10 border-amber-500/30 text-amber-400',
+    HARVEST: 'from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-400',
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Execute Modal */}
-      <ExecuteModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        action={modalAction}
-        vault={modalVault}
-        onConfirm={executeAction}
-        executing={executing}
-      />
-
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Header */}
-      <header className="border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="border-b border-white/5">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/icon.svg" alt="mBrain" className="w-10 h-10 rounded-xl" />
-            <div>
-              <h1 className="text-xl font-bold">mBrain</h1>
-              <p className="text-xs text-gray-500">AI Yield Optimizer</p>
-            </div>
+            <img src="/icon.svg" alt="" className="w-9 h-9" />
+            <span className="text-lg font-semibold tracking-tight">mBrain</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-xs text-gray-500">
-              {data ? `Last update: ${new Date(data.timestamp).toLocaleTimeString()}` : ''}
-            </div>
-            <button
-              onClick={runAnalysis}
-              disabled={analyzing}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
-            >
-              {analyzing ? 'Analyzing...' : 'Run Analysis'}
-            </button>
-          </div>
+          <button
+            onClick={analyze}
+            disabled={analyzing}
+            className="px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm font-medium transition-all disabled:opacity-50"
+          >
+            {analyzing ? 'Analyzing...' : 'Analyze'}
+          </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded-xl text-red-400">
-            {error}
-            <p className="text-xs mt-1 text-red-500">Run: cd mBrain/agent && npm run dev</p>
+      <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+        {/* Thinking Banner */}
+        {thinking && (
+          <div className="flex items-center gap-3 px-4 py-3 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+            <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+            <span className="text-sm text-purple-300">{thinking}</span>
           </div>
         )}
 
-        {/* Agent Thinking Banner */}
-        {agentThinking && (
-          <div className="mb-6 p-4 bg-purple-900/30 border border-purple-700/50 rounded-xl flex items-center gap-3">
-            <div className="animate-pulse w-3 h-3 bg-purple-500 rounded-full" />
-            <span className="text-purple-300">{agentThinking}</span>
+        {/* Agent Toggle */}
+        <div className="flex items-center justify-between p-5 bg-gradient-to-r from-white/[0.03] to-transparent border border-white/5 rounded-2xl">
+          <div className="flex items-center gap-4">
+            <div className={`w-3 h-3 rounded-full transition-colors ${agent.enabled ? 'bg-emerald-400' : 'bg-white/20'}`} />
+            <div>
+              <div className="font-medium">Autonomous Mode</div>
+              <div className="text-xs text-white/40 mt-0.5">Auto-execute at {agent.threshold}% confidence</div>
+            </div>
           </div>
-        )}
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="50"
+              max="95"
+              value={agent.threshold}
+              onChange={(e) => setAgent(a => ({ ...a, threshold: +e.target.value }))}
+              className="w-24 accent-purple-500"
+            />
+            <button
+              onClick={() => setAgent(a => ({ ...a, enabled: !a.enabled }))}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+                agent.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-white/50 border border-white/10'
+              }`}
+            >
+              {agent.enabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        </div>
 
-        {/* Execution Result Toast */}
-        {executionResult && (
-          <div className={`mb-6 p-4 rounded-xl border ${executionResult.success ? 'bg-green-900/20 border-green-800 text-green-400' : 'bg-red-900/20 border-red-800 text-red-400'}`}>
-            {executionResult.message}
-            <button onClick={() => setExecutionResult(null)} className="ml-4 text-xs opacity-70 hover:opacity-100">Dismiss</button>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full" />
-          </div>
-        ) : (
-          <>
-            {/* Agent Mode Control Panel */}
-            <div className="mb-6 p-6 bg-gradient-to-r from-cyan-900/20 to-purple-900/20 rounded-2xl border border-cyan-800/30">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded-full ${agentConfig.enabled ? 'bg-green-500 animate-pulse' : 'bg-gray-600'}`} />
-                  <div>
-                    <h2 className="text-lg font-bold">Agent Mode</h2>
-                    <p className="text-xs text-gray-400">Autonomous execution when confidence threshold is met</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setAgentConfig(prev => ({ ...prev, enabled: !prev.enabled }))}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                    agentConfig.enabled
-                      ? 'bg-green-600 hover:bg-green-500 text-white'
-                      : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                  }`}
-                >
-                  {agentConfig.enabled ? 'ENABLED' : 'DISABLED'}
-                </button>
+        {/* AI Recommendation */}
+        {rec && (
+          <div className={`p-6 bg-gradient-to-br ${actionStyles[rec.action]} border rounded-2xl`}>
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <div className="text-2xl font-bold">{rec.action}</div>
+                <div className="text-white/40 text-sm mt-1">{rec.confidence}% confidence</div>
               </div>
+              <div className="text-xs text-white/30">Claude</div>
+            </div>
 
-              <div className="grid md:grid-cols-3 gap-6">
-                {/* Confidence Threshold */}
-                <div className="p-4 bg-black/30 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-400">Confidence Threshold</span>
-                    <span className="text-lg font-bold text-cyan-400">{agentConfig.confidenceThreshold}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="50"
-                    max="95"
-                    value={agentConfig.confidenceThreshold}
-                    onChange={(e) => setAgentConfig(prev => ({ ...prev, confidenceThreshold: parseInt(e.target.value) }))}
-                    className="w-full accent-cyan-500"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>50%</span>
-                    <span>95%</span>
-                  </div>
-                </div>
+            <p className="text-white/70 text-sm leading-relaxed mb-6">{rec.reasoning}</p>
 
-                {/* Auto Actions */}
-                <div className="p-4 bg-black/30 rounded-xl">
-                  <span className="text-sm text-gray-400 block mb-3">Autonomous Actions</span>
+            <div className="grid md:grid-cols-2 gap-4">
+              {['usdc', 'weth'].map((vault) => {
+                const v = vault === 'usdc' ? rec.details.usdcVault : rec.details.wethVault
+                const vaultData = vault === 'usdc' ? data?.vaults.usdc : data?.vaults.weth
+                return (
+                  <div key={vault} className="p-4 bg-black/20 rounded-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-medium">{vault.toUpperCase()}</span>
+                      <span className="text-emerald-400 text-sm">{vaultData?.apy.toFixed(1)}%</span>
+                    </div>
+                    <p className="text-xs text-white/50 leading-relaxed">{v.suggestedAction}</p>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => execute('rebalance', vault)}
+                        className="px-3 py-1 text-xs bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                      >
+                        Rebalance
+                      </button>
+                      <button
+                        onClick={() => execute('harvest', vault)}
+                        className="px-3 py-1 text-xs bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                      >
+                        Harvest
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Metrics Grid */}
+        <div className="grid md:grid-cols-4 gap-4">
+          {/* USDC Vault */}
+          {data?.vaults.usdc && (
+            <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
+              <div className="text-xs text-white/40 mb-1">USDC Vault</div>
+              <div className="text-2xl font-semibold">{data.vaults.usdc.apy.toFixed(1)}%</div>
+              <div className="text-xs text-white/30 mt-2">${parseFloat(data.vaults.usdc.tvl).toFixed(0)} TVL</div>
+            </div>
+          )}
+
+          {/* WETH Vault */}
+          {data?.vaults.weth && (
+            <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
+              <div className="text-xs text-white/40 mb-1">WETH Vault</div>
+              <div className="text-2xl font-semibold">{data.vaults.weth.apy.toFixed(1)}%</div>
+              <div className="text-xs text-white/30 mt-2">{parseFloat(data.vaults.weth.tvl).toFixed(4)} TVL</div>
+            </div>
+          )}
+
+          {/* Lendle */}
+          {data?.protocols.lendle && (
+            <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
+              <div className="text-xs text-white/40 mb-1">Lendle USDC</div>
+              <div className="text-2xl font-semibold">{data.protocols.lendle.usdcSupplyAPY.toFixed(1)}%</div>
+              <div className="text-xs text-white/30 mt-2">{data.protocols.lendle.usdcUtilization.toFixed(0)}% utilized</div>
+            </div>
+          )}
+
+          {/* mETH */}
+          {data?.protocols.meth && (
+            <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
+              <div className="text-xs text-white/40 mb-1">mETH Staking</div>
+              <div className="text-2xl font-semibold">{data.protocols.meth.stakingAPY.toFixed(1)}%</div>
+              <div className="text-xs text-white/30 mt-2">{data.protocols.meth.exchangeRate} rate</div>
+            </div>
+          )}
+        </div>
+
+        {/* Keeper Status */}
+        {keeper?.address && (
+          <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl text-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full" />
+              <span className="font-mono text-white/50">{keeper.address.slice(0, 6)}...{keeper.address.slice(-4)}</span>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-white/40">
+              <span>{parseFloat(keeper.balance).toFixed(2)} MNT</span>
+              <span className={keeper.isAuthorized.usdcVault ? 'text-emerald-400' : ''}>USDC {keeper.isAuthorized.usdcVault ? '✓' : '✗'}</span>
+              <span className={keeper.isAuthorized.wethVault ? 'text-emerald-400' : ''}>WETH {keeper.isAuthorized.wethVault ? '✓' : '✗'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Allocation Breakdown */}
+        {data && (
+          <div className="grid md:grid-cols-2 gap-4">
+            {['usdc', 'weth'].map((vault) => {
+              const v = vault === 'usdc' ? data.vaults.usdc : data.vaults.weth
+              return (
+                <div key={vault} className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-medium">{vault.toUpperCase()} Allocation</span>
+                    {v.needsRebalance && <span className="text-xs text-amber-400">Drift detected</span>}
+                  </div>
                   <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={agentConfig.autoRebalance}
-                        onChange={(e) => setAgentConfig(prev => ({ ...prev, autoRebalance: e.target.checked }))}
-                        className="accent-yellow-500"
-                      />
-                      <span className="text-sm">Auto Rebalance</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={agentConfig.autoHarvest}
-                        onChange={(e) => setAgentConfig(prev => ({ ...prev, autoHarvest: e.target.checked }))}
-                        className="accent-blue-500"
-                      />
-                      <span className="text-sm">Auto Harvest</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Agent Status */}
-                <div className="p-4 bg-black/30 rounded-xl">
-                  <span className="text-sm text-gray-400 block mb-3">Agent Status</span>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Current Confidence</span>
-                      <span className={recommendation && recommendation.confidence >= agentConfig.confidenceThreshold ? 'text-green-400' : 'text-gray-400'}>
-                        {recommendation?.confidence || 0}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Would Execute</span>
-                      <span className={recommendation && recommendation.confidence >= agentConfig.confidenceThreshold && recommendation.action !== 'HOLD' ? 'text-green-400' : 'text-gray-400'}>
-                        {recommendation && recommendation.confidence >= agentConfig.confidenceThreshold && recommendation.action !== 'HOLD' ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Executions</span>
-                      <span>{executionLogs.filter(l => l.triggeredBy === 'agent').length}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Keeper Status Card */}
-            {keeperStatus && (
-              <div className="mb-6 p-4 bg-gray-900 rounded-xl border border-gray-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${keeperStatus.address ? 'bg-green-500' : 'bg-gray-500'}`} />
-                    <div>
-                      <div className="text-sm font-medium">Keeper Wallet</div>
-                      <div className="text-xs text-gray-500 font-mono">
-                        {keeperStatus.address ? `${keeperStatus.address.slice(0, 6)}...${keeperStatus.address.slice(-4)}` : 'Not configured'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">Balance</div>
-                      <div className="text-sm">{parseFloat(keeperStatus.balance).toFixed(4)} MNT</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className={`px-2 py-1 rounded text-xs ${keeperStatus.isAuthorized.usdcVault ? 'bg-green-900/30 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
-                        USDC {keeperStatus.isAuthorized.usdcVault ? 'Auth' : 'Not Auth'}
-                      </div>
-                      <div className={`px-2 py-1 rounded text-xs ${keeperStatus.isAuthorized.wethVault ? 'bg-green-900/30 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
-                        WETH {keeperStatus.isAuthorized.wethVault ? 'Auth' : 'Not Auth'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* AI Recommendation Card */}
-            {recommendation && (
-              <div className="mb-8 p-6 bg-gradient-to-r from-purple-900/20 to-pink-900/20 rounded-2xl border border-purple-800/30">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h2 className="text-lg font-bold mb-1">AI Recommendation</h2>
-                    <p className="text-sm text-gray-400">Powered by Claude</p>
-                  </div>
-                  <div className={`px-4 py-2 rounded-lg border ${actionColor[recommendation.action]}`}>
-                    <div className="text-lg font-bold">{recommendation.action}</div>
-                    <div className="text-xs opacity-70">{recommendation.confidence}% confidence</div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-black/30 rounded-xl mb-4">
-                  <p className="text-sm text-gray-300">{recommendation.reasoning}</p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div className="p-4 bg-gray-900/50 rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium">USDC Vault</h3>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openExecuteModal('rebalance', 'usdc')}
-                          className="px-2 py-1 text-xs bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 rounded transition-colors"
-                        >
-                          Rebalance
-                        </button>
-                        <button
-                          onClick={() => openExecuteModal('harvest', 'usdc')}
-                          className="px-2 py-1 text-xs bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded transition-colors"
-                        >
-                          Harvest
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm text-purple-400 mb-1">{recommendation.details.usdcVault.suggestedAction}</p>
-                    <p className="text-xs text-gray-500">{recommendation.details.usdcVault.allocationAnalysis}</p>
-                  </div>
-                  <div className="p-4 bg-gray-900/50 rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium">WETH Vault</h3>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openExecuteModal('rebalance', 'weth')}
-                          className="px-2 py-1 text-xs bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 rounded transition-colors"
-                        >
-                          Rebalance
-                        </button>
-                        <button
-                          onClick={() => openExecuteModal('harvest', 'weth')}
-                          className="px-2 py-1 text-xs bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded transition-colors"
-                        >
-                          Harvest
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm text-purple-400 mb-1">{recommendation.details.wethVault.suggestedAction}</p>
-                    <p className="text-xs text-gray-500">{recommendation.details.wethVault.allocationAnalysis}</p>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-xs text-gray-500 mb-1">Market Analysis</h4>
-                    <p className="text-sm text-gray-400">{recommendation.marketAnalysis}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-xs text-gray-500 mb-1">Risk Assessment</h4>
-                    <p className="text-sm text-gray-400">{recommendation.riskAssessment}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Execution History */}
-            {executionLogs.length > 0 && (
-              <div className="mb-8 p-6 bg-gray-900 rounded-2xl border border-gray-800">
-                <h2 className="text-lg font-bold mb-4">Execution History</h2>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {executionLogs.map((log, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-black/30 rounded-lg text-sm">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${log.success ? 'bg-green-500' : 'bg-red-500'}`} />
-                        <span className={`px-2 py-0.5 rounded text-xs ${log.triggeredBy === 'agent' ? 'bg-cyan-900/30 text-cyan-400' : 'bg-gray-800 text-gray-400'}`}>
-                          {log.triggeredBy === 'agent' ? 'AGENT' : 'MANUAL'}
-                        </span>
-                        <span className="text-gray-300">{log.action.toUpperCase()}</span>
-                        <span className="text-gray-500">{log.vault.toUpperCase()} Vault</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {log.txHash && (
-                          <span className="text-xs text-gray-500 font-mono">{log.txHash.slice(0, 10)}...</span>
-                        )}
-                        {log.error && (
-                          <span className="text-xs text-red-400">{log.error}</span>
-                        )}
-                        <span className="text-xs text-gray-500">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Protocol Data Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* USDC Vault */}
-              {data?.vaults.usdc && (
-                <div className="p-6 bg-gray-900 rounded-2xl border border-gray-800">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold">USDC Vault</h3>
-                    <span className="text-green-400 font-bold">{data.vaults.usdc.apy.toFixed(2)}% APY</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">TVL</span>
-                      <span>{parseFloat(data.vaults.usdc.tvl).toFixed(2)} USDC</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Needs Rebalance</span>
-                      <span className={data.vaults.usdc.needsRebalance ? 'text-yellow-400' : 'text-green-400'}>
-                        {data.vaults.usdc.needsRebalance ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                    <div className="pt-2 border-t border-gray-800">
-                      <div className="text-xs text-gray-500 mb-2">Adapters</div>
-                      {data.vaults.usdc.adapters.map((adapter, i) => (
-                        <div key={i} className="flex justify-between text-xs py-1">
-                          <span className="text-gray-400 font-mono">{adapter.address.slice(0, 10)}...</span>
-                          <span>{adapter.allocation}%</span>
+                    {v.adapters.map((a, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                            style={{ width: `${a.allocation}%` }}
+                          />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* WETH Vault */}
-              {data?.vaults.weth && (
-                <div className="p-6 bg-gray-900 rounded-2xl border border-gray-800">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold">WETH Vault</h3>
-                    <span className="text-green-400 font-bold">{data.vaults.weth.apy.toFixed(2)}% APY</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">TVL</span>
-                      <span>{parseFloat(data.vaults.weth.tvl).toFixed(6)} WETH</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Needs Rebalance</span>
-                      <span className={data.vaults.weth.needsRebalance ? 'text-yellow-400' : 'text-green-400'}>
-                        {data.vaults.weth.needsRebalance ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                    <div className="pt-2 border-t border-gray-800">
-                      <div className="text-xs text-gray-500 mb-2">Adapters</div>
-                      {data.vaults.weth.adapters.map((adapter, i) => (
-                        <div key={i} className="flex justify-between text-xs py-1">
-                          <span className="text-gray-400 font-mono">{adapter.address.slice(0, 10)}...</span>
-                          <span>{adapter.allocation}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Lendle Protocol */}
-              {data?.protocols.lendle && (
-                <div className="p-6 bg-gray-900 rounded-2xl border border-gray-800">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold">Lendle Protocol</h3>
-                    <span className="text-xs text-gray-500">Aave V2 Fork</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">USDC Market</div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Supply APY</span>
-                        <span className="text-green-400">{data.protocols.lendle.usdcSupplyAPY.toFixed(2)}%</span>
+                        <span className="text-xs text-white/50 w-12 text-right">{a.allocation}%</span>
+                        <span className="text-xs text-emerald-400 w-12 text-right">{a.apy.toFixed(1)}%</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Utilization</span>
-                        <span>{data.protocols.lendle.usdcUtilization.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                    <div className="pt-2 border-t border-gray-800">
-                      <div className="text-xs text-gray-500 mb-1">WETH Market</div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Supply APY</span>
-                        <span className="text-green-400">{data.protocols.lendle.wethSupplyAPY.toFixed(2)}%</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Utilization</span>
-                        <span>{data.protocols.lendle.wethUtilization.toFixed(1)}%</span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              )}
-
-              {/* mETH Protocol */}
-              {data?.protocols.meth && (
-                <div className="p-6 bg-gray-900 rounded-2xl border border-gray-800">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold">mETH Staking</h3>
-                    <span className="text-xs text-gray-500">Mantle LST</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Staking APY</span>
-                      <span className="text-green-400">{data.protocols.meth.stakingAPY.toFixed(2)}%</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Exchange Rate</span>
-                      <span>{data.protocols.meth.exchangeRate} mETH/ETH</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* How It Works */}
-            <div className="mt-8 p-6 bg-gray-900/50 rounded-2xl border border-gray-800">
-              <h2 className="text-lg font-bold mb-4">How mBrain Works</h2>
-              <div className="grid md:grid-cols-4 gap-6">
-                <div className="text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center text-xl">
-                    1
-                  </div>
-                  <h3 className="font-medium mb-1">Oracle Data</h3>
-                  <p className="text-sm text-gray-500">Fetches live APY, TVL, and utilization from protocols</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center text-xl">
-                    2
-                  </div>
-                  <h3 className="font-medium mb-1">AI Analysis</h3>
-                  <p className="text-sm text-gray-500">GPT-4 analyzes data and generates recommendations</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center text-xl">
-                    3
-                  </div>
-                  <h3 className="font-medium mb-1">Agent Decision</h3>
-                  <p className="text-sm text-gray-500">Agent checks confidence threshold and authorization</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-pink-600/20 text-pink-400 flex items-center justify-center text-xl">
-                    4
-                  </div>
-                  <h3 className="font-medium mb-1">Auto Execute</h3>
-                  <p className="text-sm text-gray-500">Autonomously executes rebalance or harvest</p>
-                </div>
-              </div>
-            </div>
-          </>
+              )
+            })}
+          </div>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-6 text-center text-gray-500 text-sm">
-          mBrain - Autonomous AI yield optimizer for mYield on Mantle
+      <footer className="border-t border-white/5 mt-16">
+        <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between text-xs text-white/30">
+          <span>mBrain</span>
+          <span>Autonomous yield optimization</span>
         </div>
       </footer>
     </div>
